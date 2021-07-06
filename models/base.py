@@ -2,9 +2,6 @@ import os
 import torch
 from torch.nn import functional as F
 from tqdm import tqdm
-from sklearn.metrics import confusion_matrix
-import matplotlib.pyplot as plt
-
 from basic_net import Basic_net, DJB
 import utils
 import config
@@ -19,41 +16,35 @@ class Base:
     '''
     def __init__(self, train_dataset, test_dataset, pretrained, *args):
         self.net = self._construct_basic_net()
-        self.train_dataset = train_dataset
-        self.test_dataset = test_dataset
         self.num_class = 0
         self.name = config.name
+        self.train_dataset = train_dataset
+        self.test_dataset = test_dataset
         if pretrained:
             self._pretrain()
 
-    def train(self, task):
-        config.logger.info("==================== Task {} ====================".format(task))
-        self._expand_net(self.train_dataset.get_num_class(task))
-        self._setup_optimizer()
-        if not self.resume(task):
-            train_loader, valid_loader = self._get_train_loader(task)
-            self._train(task, train_loader, valid_loader)
-        self.save_model(task)
-        self._after_train(task)
+    def expand_net(self, num_class):
+        if num_class > self.num_class:
+            self.num_class = num_class
+            self.net.expand_fc(self.num_class)
+        self.net.to(config.device)
 
-    def eval(self, task):
-        self.net.eval()
-        pred = []; y_true = []
-        for t in range(task + 1):
-            test_loader = self.test_dataset.get_loader(t)
-            p, yt = self._test(test_loader, t)
-            pred.extend(p)
-            y_true.extend(yt)
-        pred = torch.cat(pred); y_true = torch.cat(y_true)
-        conf_mat = confusion_matrix(y_true.cpu(), pred.cpu(), normalize='true')
-        fig = plt.figure()
-        plt.imshow(conf_mat)
-        correct = (pred == y_true)
-        total = len(pred)
-        accuracy = round(100.0 * correct.sum().item() / total, 3)
-        all_info = utils.calc_accuracy(pred, y_true, self.train_dataset.class_split)
-        self.net.train()
-        return accuracy, all_info, fig
+    def setup_optimizer(self, optim=None, scheduler=None):
+        ## TODO xxx
+        if not optim:
+            optim = config.optim
+        if not scheduler:
+            scheduler = config.scheduler
+        if optim == "Adam":
+            self.optim = getattr(torch.optim, optim)(filter(lambda p: p.requires_grad, self.net.parameters()), lr=config.lr, weight_decay=config.weight_decay)
+        else:
+            self.optim = getattr(torch.optim, optim)(filter(lambda p: p.requires_grad, self.net.parameters()), lr=config.lr, weight_decay=config.weight_decay, momentum=config.momentum)
+        
+        if scheduler == "MultiStepLR":
+            milestones = [int(x * config.total_complexity / config.batch_size) for x in config.sc]
+            self.scheduler = getattr(torch.optim.lr_scheduler, scheduler)(self.optim, milestones=milestones, gamma=config.lr_decay)
+        else:
+            self.scheduler = getattr(torch.optim.lr_scheduler, scheduler)(self.optim, max_lr=config.max_lr, total_steps=int(config.total_complexity / config.batch_size))
         
     def save_model(self, task):
         ##### TODO ######
@@ -114,7 +105,7 @@ class Base:
                     all_loss[label].append(loss)
 
     @final
-    def _train(self, task, train_loader, valid_loader=None):
+    def train(self, task, train_loader, valid_loader=None):
         accuracy = None
         config.logger.info("Data size : {}".format(len(train_loader.dataset)))
         iterloader = iter(train_loader)
@@ -181,10 +172,10 @@ class Base:
         self.net.train()
         return False
 
-    def _after_train(self, task):
+    def after_train(self, task):
         pass 
 
-    def _test(self, testloader, task):
+    def test(self, testloader, task):
         self.net.eval()
         pred = []
         y_true = []
@@ -202,9 +193,6 @@ class Base:
             return F.cross_entropy(output, target)
         target = utils.to_one_hot(target, self.num_class).to(config.device)
         return F.binary_cross_entropy_with_logits(output, target,)
-
-    def _get_train_loader(self, task):
-        return self.train_dataset.get_loader(task), self.train_dataset.get_validation_loader(task)
 
     def _pretrain(self):
         if config.dataset == 'iCIFAR100':
@@ -235,25 +223,6 @@ class Base:
         basic_net.bias = True
         return basic_net
     
-    def _setup_optimizer(self, optim=None, scheduler=None):
-        ### TODO: a continual optimizer
-        if not optim:
-            optim = config.optim
-        if not scheduler:
-            scheduler = config.scheduler
-        if optim == "Adam":
-            self.optim = getattr(torch.optim, optim)(filter(lambda p: p.requires_grad, self.net.parameters()), lr=config.lr, weight_decay=config.weight_decay)
-        else:
-            self.optim = getattr(torch.optim, optim)(filter(lambda p: p.requires_grad, self.net.parameters()), lr=config.lr, weight_decay=config.weight_decay, momentum=config.momentum)
-        
-        if scheduler == "MultiStepLR":
-            milestones = [int(x * config.total_complexity / config.batch_size) for x in config.sc]
-            self.scheduler = getattr(torch.optim.lr_scheduler, scheduler)(self.optim, milestones=milestones, gamma=config.lr_decay)
-        else:
-            self.scheduler = getattr(torch.optim.lr_scheduler, scheduler)(self.optim, max_lr=config.max_lr, total_steps=int(config.total_complexity / config.batch_size))
+    
 
-    def _expand_net(self, num_class):
-        if num_class > self.num_class:
-            self.num_class = num_class
-            self.net.expand_fc(self.num_class)
-        self.net.to(config.device)
+
