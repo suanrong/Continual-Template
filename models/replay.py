@@ -17,7 +17,7 @@ class Replay(Base):
         self.class_mean_set = None
         self.last_class = 0
 
-    def _expand_net(self, num_class):
+    def expand_net(self, num_class):
         if num_class > self.num_class:
             self.last_class = self.num_class
             self.num_class = num_class
@@ -27,8 +27,8 @@ class Replay(Base):
     def _get_train_loader(self, task):
         return self.train_dataset.get_loader(task, self.exemplar_handler.get_exemplar_dataset()), self.train_dataset.get_validation_loader(task)
 
-    def _after_train(self, task):
-        super()._after_train(task)
+    def after_train(self, task):
+        super().after_train(task)
         config.logger.info("Adding new class exemplars")
         for class_id in range(self.last_class, self.num_class):
             self.exemplar_handler.add_class(class_id)

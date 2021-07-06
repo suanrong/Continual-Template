@@ -20,8 +20,8 @@ class IL2M(Replay):
         if config.init_task_size == 0:
             self.model_confidence.append(1.0)
 
-    def _after_train(self, task):
-        super()._after_train(task)
+    def after_train(self, task):
+        super().after_train(task)
         self.eval(task)
         if task == 0 and config.init_task_size:
             st_class = 0

@@ -1,7 +1,7 @@
 # Byte-compiled / optimized / DLL files
 data/
 runs/
-model/
+saved_model/
 .vscode/
 __pycache__/
 *.py[cod]

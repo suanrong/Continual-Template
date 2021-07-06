@@ -1,4 +1,4 @@
-from .icarl import iCaRL, iCaRL_new
+from .icarl import iCaRL
 from .eteil import EtEIL
 from .rwn import RWN
 from .ucir import UCIR

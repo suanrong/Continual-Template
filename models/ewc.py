@@ -8,7 +8,7 @@ config = config.config
 
 class EWC(Base):
     tasks=[]
-    def _after_train(self, task):
+    def after_train(self, task):
         super()._after_train(task)
         self.consolidate(self.estimate_fisher(task), task)
     

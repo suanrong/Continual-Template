@@ -54,7 +54,7 @@ class Base:
         # self.net.fc.save_para()
         #################
         self.net.eval()
-        filename='model/{}_task:{}_seed:{}.pt'.format(self.name, task, self.train_dataset.seed)
+        filename='saved_model/{}_task:{}_seed:{}.pt'.format(self.name, task, self.train_dataset.seed)
         torch.save(self.net, filename)
 
     def classify(self, imgs, task):
@@ -223,6 +223,8 @@ class Base:
         basic_net.bias = True
         return basic_net
     
+    def _get_train_loader(self, task):
+        return self.train_dataset.get_loader(task), self.train_dataset.get_validation_loader(task)
     
 
 

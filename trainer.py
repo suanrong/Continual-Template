@@ -4,12 +4,13 @@ import pandas as pd
 import numpy as np
 
 import utils
-import config
-config = config.config
 import data
 
 from exemplar import ExemplarHandler
 import models
+
+import config
+config = config.config
 
 def save_result(average_accuracy, average_forgetting, accuracy_curve, num_task, seed):
     df = pd.DataFrame(
@@ -41,21 +42,21 @@ class ContinualTrainer(object):
         self.train_dataset = data_class(train=True, seed=seed, validation=False, increment=config.increment, init_task_size=config.init_task_size)
         self.test_dataset = data_class(train=False, seed=seed, increment=config.increment, init_task_size=config.init_task_size)
         exemplar_class = ExemplarHandler
-        model = getattr(models, config.model)(config.pretrained, exemplar_class)
+        self.model = getattr(models, config.model)(self.train_dataset, self.test_dataset, config.pretrained, exemplar_class)
         config.logger.info("Model {}".format(config.model))
         config.logger.info("Dataset {}".format(self.train_dataset))
         config.logger.info("Class order {}".format(self.train_dataset.class_order))
         config.logger.info("Classify Mode {}".format(config.classify_mode))
         ## Determine the number of tasks
         if config.init_task_size:
-            self.num_task = (model.train_dataset.num_class - config.init_task_size) // config.increment + 1
+            self.num_task = (self.train_dataset.num_class - config.init_task_size) // config.increment + 1
         else:
-            self.num_task = model.train_dataset.num_class // config.increment
+            self.num_task = self.train_dataset.num_class // config.increment
 
     def train(self):
         result = []
         accuracy_curve = []
-        for task in self.num_task:
+        for task in range(self.num_task):
             self.train_one_task(self.model, task)
             _, all_info, _ = self.eval_after_task(self.model, task)
             config.logger.info("Task {} accuracy {}".format(task, str(all_info)))
@@ -77,7 +78,7 @@ class ContinualTrainer(object):
         model.expand_net(self.train_dataset.get_num_class(task))
         model.setup_optimizer()
         # if not model.resume(task):
-        train_loader, valid_loader = self._get_train_loader(task)
+        train_loader, valid_loader = self.model._get_train_loader(task)
         model.train(task, train_loader, valid_loader)
         model.save_model(task)
         model.after_train(task)
@@ -89,16 +90,16 @@ class ContinualTrainer(object):
         for task in range(current_task + 1):
             test_loader = self.test_dataset.get_loader(task)
             pred, y_true = model.test(test_loader, task)
-            all_acc[task] = round(100.0 * (y_true == pred).sum().item() / len(pred), 3)
+            all_acc[task] = round(100.0 * (torch.cat(y_true) == torch.cat(pred)).sum().item() / len(pred), 3)
             preds.extend(pred)
             y_trues.extend(y_true)
         preds = torch.cat(preds); y_trues = torch.cat(y_trues)
         from sklearn.metrics import confusion_matrix
-        conf_mat = confusion_matrix(y_true.cpu(), pred.cpu(), normalize='true')
+        conf_mat = confusion_matrix(y_trues.cpu(), preds.cpu(), normalize='true')
         fig = plt.figure()
         plt.imshow(conf_mat)
         accuracy = round(100.0 * (preds == y_trues).sum().item() / len(preds), 3)
+        all_acc['total'] = accuracy
         return accuracy, all_acc, fig
 
-    def _get_train_loader(self, task):
-        return self.train_dataset.get_loader(task), self.train_dataset.get_validation_loader(task)
+

@@ -6,7 +6,6 @@ import copy
 
 import config
 config = config.config
-from gng import GNG
 import utils
 
 class ExemplarDataset(Dataset):

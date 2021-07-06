@@ -15,8 +15,8 @@ class LwF(Base):
         super().__init__(train_dataset, test_dataset, *args)
         self.old_net = None
         
-    def _after_train(self, task):
-        super()._after_train(task)
+    def after_train(self, task):
+        super().after_train(task)
         del self.old_net
         self.old_net = copy.deepcopy(self.net)
         self.old_net.to(config.device)

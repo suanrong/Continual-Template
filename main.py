@@ -1,7 +1,6 @@
 from pdb import Pdb
 import time
 import os
-from trainer import ContinualTrainer
 os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
 
 import numpy as np
@@ -12,9 +11,9 @@ from config import setup_writer
 config.init()
 config = config.config
 import utils
+from trainer import ContinualTrainer
 
 def trial(seed):
-    from trainer import ContinualTrainer
     trainer = ContinualTrainer(seed)
     trainer.train()
 
