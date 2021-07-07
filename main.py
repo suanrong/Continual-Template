@@ -15,7 +15,7 @@ from trainer import ContinualTrainer
 
 def trial(seed):
     trainer = ContinualTrainer(seed)
-    trainer.train()
+    trainer.continual_train()
 
 def main():
     print(config)

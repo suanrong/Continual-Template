@@ -53,7 +53,7 @@ class ContinualTrainer(object):
         else:
             self.num_task = self.train_dataset.num_class // config.increment
 
-    def train(self):
+    def continual_train(self):
         result = []
         accuracy_curve = []
         for task in range(self.num_task):
